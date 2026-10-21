@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>National Outbreak Command Center - Real-Time Geospatial Telemetry</title>
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Leaflet MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  
+  <link rel="stylesheet" href="./dashboard.css?v=7">
+</head>
+<body>
+
+  <!-- Top Command Navigation Bar -->
+  <header class="top-bar" role="banner">
+    <div class="brand-cluster">
+      <button id="btn-sidebar-toggle" class="icon-btn" title="Toggle Sidebar" aria-label="Toggle telemetry sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="brand-logo-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+      </div>
+
+      <div class="brand-text">
+        <div class="brand-title">National Outbreak Command Center</div>
+        <div class="brand-subtitle">Emergency Agricultural Telemetry & Neural Diagnosis Hub</div>
+      </div>
+    </div>
+
+    <!-- Live Status & HUD Clock -->
+    <div class="hud-center">
+      <div id="connection-badge" class="connection-pill live" title="Real-time Server-Sent Events stream status">
+        <span class="live-ping-dot"></span>
+        <span id="connection-status-text">SSE Live Feed Active</span>
+      </div>
+
+      <div class="hud-clock" id="hud-clock">
+        <span id="hud-time">--:--:--</span>
+        <span class="hud-tz">IST</span>
+      </div>
+    </div>
+
+    <!-- Quick Action Controls -->
+    <div class="top-actions">
+      <!-- Audio Alarm Toggle -->
+      <button id="btn-audio-toggle" class="hud-action-btn" type="button" title="Toggle audio alert chime on incoming critical incidents">
+        <svg id="icon-audio-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+        <svg id="icon-audio-on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <span id="audio-btn-label">Alert Sound: Off</span>
+      </button>
+
+      <!-- Auto Simulation Loop Toggle -->
+      <button id="btn-auto-sim" class="hud-action-btn" type="button" title="Automatically simulate edge reports every 8 seconds for live demonstration">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <span id="auto-sim-label">Auto-Sim: Off</span>
+      </button>
+
+      <!-- Single Edge Ping Trigger -->
+      <button id="btn-simulate" class="hud-action-btn btn-accent" type="button" title="Send a single simulated telemetry report to test triage workflow">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>Test Ping</span>
+      </button>
+
+      <!-- Data Export Options -->
+      <div class="dropdown-wrapper">
+        <button id="btn-export-menu" class="hud-action-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Export current telemetry dataset">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Export Data</span>
+        </button>
+        <div id="export-dropdown" class="dropdown-menu">
+          <button id="btn-export-geojson" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="12 8 8 12 12 16 16 12 12 8"></polygon></svg>
+            Export GeoJSON (RFC 7946)
+          </button>
+          <button id="btn-export-csv" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            Export CSV Spreadsheet
+          </button>
+        </div>
+      </div>
+
+      <!-- Shortcut to Field Node PWA -->
+      <a href="/" class="pwa-nav-btn" target="_blank" rel="noopener noreferrer" title="Open Mobile PWA Edge Capture Client">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+          <line x1="12" y1="18" x2="12.01" y2="18"></line>
+        </svg>
+        <span>Field PWA Node</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Command Workspace -->
+  <div class="workspace-layout">
+
+    <!-- Left Analytical Triage Sidebar -->
+    <aside id="sidebar" class="sidebar" role="region" aria-label="Command Telemetry and KPI Insights">
+      <div class="sidebar-scrollable">
+        
+        <!-- Severity Ratio Distribution Bar -->
+        <section class="section-box" aria-label="Outbreak Severity Distribution">
+          <div class="section-header-compact">
+            <span class="section-title">Threat Level Distribution</span>
+            <span id="threat-level-badge" class="threat-pill">ELEVATED</span>
+          </div>
+          <div class="distribution-bar" title="Proportion of Critical, High, Medium, and Low severity incidents">
+            <div id="bar-crit" class="bar-seg crit" style="width: 25%"></div>
+            <div id="bar-high" class="bar-seg high" style="width: 50%"></div>
+            <div id="bar-med" class="bar-seg med" style="width: 12.5%"></div>
+            <div id="bar-low" class="bar-seg low" style="width: 12.5%"></div>
+          </div>
+          <div class="distribution-legend">
+            <span class="leg-item"><span class="dot crit"></span> Critical</span>
+            <span class="leg-item"><span class="dot high"></span> High</span>
+            <span class="leg-item"><span class="dot med"></span> Med</span>
+            <span class="leg-item"><span class="dot low"></span> Low</span>
+          </div>
+        </section>
+
+        <!-- KPI Metric Cards Grid -->
+        <section class="kpi-grid" aria-label="Key Performance Indicators">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Outbreaks</div>
+            <div id="kpi-total" class="kpi-val accent">0</div>
+            <div class="kpi-sub">Edge incident reports</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Critical / High</div>
+            <div id="kpi-critical" class="kpi-val critical">0</div>
+            <div class="kpi-sub">Requiring immediate triage</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Neural Confidence</div>
+            <div id="kpi-confidence" class="kpi-val success">0.0%</div>
+            <div class="kpi-sub">Mean edge model inference</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Active Clusters</div>
+            <div id="kpi-clusters" class="kpi-val highlight">0</div>
+            <div class="kpi-sub">Geographic outbreak hubs</div>
+          </div>
+        </section>
+
+        <!-- Search & Filter Console -->
+        <section class="filter-console" aria-label="Search and Filter Incident Stream">
+          <div class="search-input-wrapper">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              id="search-input" 
+              class="search-input" 
+              placeholder="Search by pathogen, symptom, location..." 
+              aria-label="Filter incidents by text query"
+            />
+            <button id="btn-search-clear" class="btn-clear" type="button" title="Clear search query" style="display: none;">&times;</button>
+          </div>
+
+          <!-- Severity Filter Pills -->
+          <div class="severity-pills" role="radiogroup" aria-label="Filter incidents by severity level">
+            <button class="pill-btn active" data-severity="ALL" type="button">
+              All <span id="count-all" class="pill-count">0</span>
+            </button>
+            <button class="pill-btn pill-crit" data-severity="CRITICAL" type="button">
+              Critical <span id="count-crit" class="pill-count">0</span>
+            </button>
+            <button class="pill-btn pill-high" data-severity="HIGH" type="button">
+              High <span id="count-high" class="pill-count">0</span>
+            </button>
+            <button class="pill-btn pill-med" data-severity="MEDIUM" type="button">
+              Medium <span id="count-med" class="pill-count">0</span>
+            </button>
+            <button class="pill-btn pill-low" data-severity="LOW" type="button">
+              Low <span id="count-low" class="pill-count">0</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Live Incident Triage Stream Feed -->
+        <section class="stream-section" aria-label="Live Outbreak Incident Stream">
+          <div class="feed-header">
+            <div class="feed-header-left">
+              <span>Incident Stream</span>
+              <span id="feed-count-badge" class="count-tag">0 visible</span>
+            </div>
+            <div class="feed-header-right">
+              <button id="btn-reset-filters" class="text-link-btn" type="button">Reset Filters</button>
+            </div>
+          </div>
+
+          <div id="feed-container" class="feed-container" role="feed" aria-busy="false">
+            <!-- Dynamically populated and filtered by dashboard.js -->
+          </div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- Interactive Geospatial Map Viewport -->
+    <main class="map-viewport" role="main">
+      <div id="map" role="application" aria-label="Interactive Geospatial Outbreak Map"></div>
+
+      <!-- Map HUD Status Strip -->
+      <footer class="map-hud" role="status">
+        <div class="hud-item">
+          <span class="hud-label">COORDS:</span>
+          <span id="hud-coords" class="hud-val font-mono">20.5937° N, 78.9629° E</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">ZOOM:</span>
+          <span id="hud-zoom" class="hud-val font-mono">5.0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">PROJECTION:</span>
+          <span class="hud-val font-mono">EPSG:3857 (WGS84)</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">HOTSPOTS:</span>
+          <span id="hud-hotspots" class="hud-val font-mono">Active</span>
+        </div>
+      </footer>
+    </main>
+
+  </div>
+
+  <!-- Incident Details Modal Drawer -->
+  <div id="incident-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-condition-title" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <span id="modal-severity-badge" class="badge badge-critical">CRITICAL</span>
+          <span id="modal-category" class="tag-category">Pathology</span>
+        </div>
+        <button id="btn-modal-close" class="modal-close-btn" type="button" aria-label="Close details modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <h2 id="modal-condition-title" class="modal-title">Condition Name</h2>
+        <div class="modal-meta-row">
+          <span>Agent Node: <strong id="modal-agent">field-node</strong></span>
+          <span>•</span>
+          <span>Reported: <strong id="modal-time">Just now</strong></span>
+        </div>
+
+        <div class="confidence-box">
+          <div class="conf-top">
+            <span>Neural Inference Confidence</span>
+            <strong id="modal-confidence-val">96.5%</strong>
+          </div>
+          <div class="conf-progress-track">
+            <div id="modal-confidence-bar" class="conf-progress-fill" style="width: 96.5%"></div>
+          </div>
+        </div>
+
+        <div class="treatment-box">
+          <div class="treatment-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            Localized Triage & Agricultural Action Plan
+          </div>
+          <div id="modal-treatment" class="treatment-content">
+            Loading prescription...
+          </div>
+        </div>
+
+        <div class="geo-box">
+          <div class="geo-row">
+            <span>Latitude / Longitude:</span>
+            <strong id="modal-coords" class="font-mono">--</strong>
+          </div>
+          <div class="geo-row">
+            <span>Incident ID (UUID):</span>
+            <code id="modal-id" class="font-mono">--</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-dispatch-advisory" class="btn-primary" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Dispatch Regional Advisory
+        </button>
+        <button id="btn-copy-geojson" class="btn-secondary" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy GeoJSON
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Stack -->
+  <div id="toast-container" class="toast-stack" aria-live="polite"></div>
+
+  <!-- Leaflet, MarkerCluster, & Heatmap CDNs -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <script src="./dashboard.js?v=7"></script>
+</body>
+</html>
