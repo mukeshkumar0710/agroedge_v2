@@ -6,6 +6,7 @@ import json
 import uuid
 import datetime
 import asyncio
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +25,24 @@ from .models import (
 from .ml_pipeline import classifier_service
 from .localization import get_localized_treatment
 from .geo_store import geo_store
+from .database import mongo_manager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application Lifespan:
+    Initializes strict MongoDB connection, spatial indexes, and sample seeds on startup.
+    Gracefully closes database client connection on shutdown.
+    """
+    await geo_store.init_db()
+    yield
+    await geo_store.close_db()
 
 app = FastAPI(
     title="Edge-to-Command Geospatial AI System",
-    description="Asynchronous telemetry ingestion, edge PWA sync, and real-time government analytical dashboard.",
-    version="2.0.0"
+    description="Asynchronous telemetry ingestion, edge PWA sync, and real-time government analytical dashboard with MongoDB persistence.",
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -106,8 +120,8 @@ async def diagnose_and_report_endpoint(
     Returns HTTP 200 within <40ms while queuing ML inference in the background.
     """
     # 1. Idempotency Check
-    if geo_store.is_duplicate(client_incident_id):
-        existing = geo_store.get_incident_by_id(client_incident_id)
+    if await geo_store.is_duplicate(client_incident_id):
+        existing = await geo_store.get_incident_by_id(client_incident_id)
         diag = existing.properties.model_dump() if existing else None
         return IngestionResponse(
             client_incident_id=client_incident_id,
@@ -172,16 +186,16 @@ async def diagnose_and_report_endpoint(
 async def get_all_incidents_geojson():
     """
     Returns full GeoJSON FeatureCollection of historical and active incidents
-    for initial Leaflet map layer hydration.
+    from MongoDB for Leaflet map layer hydration.
     """
-    return geo_store.get_feature_collection()
+    return await geo_store.get_feature_collection()
 
 @app.get("/api/v1/incidents/{incident_id}")
 async def get_incident_by_id_endpoint(incident_id: str):
     """
-    Retrieve single incident record by ID with full treatment instructions.
+    Retrieve single incident record by ID from MongoDB with full treatment instructions.
     """
-    feat = geo_store.get_incident_by_id(incident_id)
+    feat = await geo_store.get_incident_by_id(incident_id)
     if not feat:
         raise HTTPException(status_code=404, detail="Incident not found")
     return feat.model_dump()
@@ -190,10 +204,10 @@ async def get_incident_by_id_endpoint(incident_id: str):
 @app.delete("/api/v1/incidents")
 async def clear_all_incidents_endpoint():
     """
-    Purges all stored spatial incidents and deduplication cache.
+    Purges all stored spatial incidents and deduplication cache in MongoDB.
     Ensures a clean slate for production deployment.
     """
-    geo_store.clear_all()
+    await geo_store.clear_all()
     return {"status": "cleared", "message": "All database incident records purged successfully.", "total_incidents": 0}
 
 
@@ -277,10 +291,15 @@ async def simulate_incident(req: SimulationRequest):
 
 @app.get("/api/v1/health")
 async def health_check():
+    incident_count = await geo_store.count_incidents()
+    is_connected = await mongo_manager.ping()
     return {
         "status": "healthy",
         "service": "Edge PWA & Geospatial Command Hub",
-        "cached_incidents": len(geo_store.features),
+        "database": "mongodb" if is_connected else "in-memory-fallback",
+        "mongodb_connected": is_connected,
+        "storage_mode": "mongodb_atlas" if is_connected else "resilient_in_memory_buffer",
+        "persisted_incidents": incident_count,
         "active_subscribers": len(geo_store.subscribers)
     }
 

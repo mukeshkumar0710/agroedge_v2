@@ -1,6 +1,32 @@
 version: '3.8'
 
 services:
+  # Optional local MongoDB container (bypassed if using MongoDB Atlas cloud URI)
+  agroedge-mongo:
+    image: mongo:7.0
+    container_name: agroedge-mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=agroedge_db
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - agroedge_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - agroedge-net
+
+  # AgroEdge MERN Stack Express + React Unified Application
   agroedge-app:
     build:
       context: .
@@ -8,23 +34,23 @@ services:
     container_name: agroedge-app
     restart: unless-stopped
     environment:
-      - APP_ENV=production
+      - NODE_ENV=production
       - HOST=0.0.0.0
       - PORT=8000
-      - WORKERS=2
-      - RELOAD=false
-      - LOG_LEVEL=info
       - CORS_ORIGINS=*
       - DEFAULT_CENTER_LAT=20.5937
       - DEFAULT_CENTER_LNG=78.9629
       - MAX_IMAGE_SIZE_BYTES=15728640
+      - MONGODB_URI=${MONGODB_URI:-mongodb://agroedge-mongo:27017/agroedge_db}
+      - MONGODB_DB_NAME=${MONGODB_DB_NAME:-agroedge_db}
+      - MONGODB_COLLECTION_NAME=${MONGODB_COLLECTION_NAME:-incidents}
+      - MONGODB_CONNECT_TIMEOUT_MS=8000
     expose:
       - "8000"
     ports:
-      # Optional direct ASGI access without reverse-proxy
       - "${DIRECT_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -37,6 +63,7 @@ services:
     networks:
       - agroedge-net
 
+  # Reverse Proxy
   agroedge-proxy:
     image: nginx:alpine
     container_name: agroedge-proxy
@@ -47,8 +74,6 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      # Uncomment for SSL certificates mounting:
-      # - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       agroedge-app:
         condition: service_healthy
@@ -59,6 +84,9 @@ services:
         max-file: "3"
     networks:
       - agroedge-net
+
+volumes:
+  agroedge_mongo_data:
 
 networks:
   agroedge-net:

@@ -1,42 +1,39 @@
-# AgroEdge: Edge PWA, Async ML Pipeline & Geospatial Command Hub
+# AgroEdge: MERN Stack Edge PWA & Geospatial Outbreak Command Hub
 
-A production-grade, highly accessible, multi-lingual Progressive Web App (PWA) with offline-first capabilities that handles edge image capture, pipes data to an asynchronous ML microservice for instant localized treatment plans, and maps geospatial data onto a real-time government analytical command dashboard.
+A production-grade, highly accessible, multi-lingual Full-Stack **MERN** application (**M**ongoDB Atlas, **E**xpress.js, **R**eact.js, **N**ode.js).
+
+AgroEdge combines an offline-first Edge PWA for farmers/field workers with an asynchronous Machine Learning disease classification pipeline and a real-time National Outbreak Command Center powered by Leaflet GIS and Server-Sent Events (SSE).
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ MERN Stack Architecture
 
 ```
  ┌────────────────────────────────────────────────────────┐
- │                   EDGE CLIENT (PWA)                    │
- │  [Camera/Input] ──► [Geolocation API] ──► [IndexedDB] │
- │                            │               ▲           │
- │                            ▼               │ retry     │
- │                   [Background Sync / SW] ──┘           │
+ │               REACT 18 CLIENT (Vite PWA)               │
+ │  - Edge Photo Capture & Foliage Inspection             │
+ │  - Geolocation API (WGS84 Lat/Lng Coordinates)         │
+ │  - Offline-first IndexedDB Store (Auto/Manual Sync)    │
+ │  - Multi-Lingual Engine (EN, HI, TA, TE, ES, BN)       │
+ │  - SpeechSynthesis Audio Remedy Readout                │
+ │  - Interactive Leaflet Dark GIS Map & Radar Pings      │
  └────────────────────────────┬───────────────────────────┘
-                              │ HTTPS / Multipart + JSON (Idempotency Key)
+                              │ HTTPS / REST + SSE (/dashboard/stream)
                               ▼
  ┌────────────────────────────────────────────────────────┐
- │               FASTAPI ASYNC INGESTION                  │
- │   - Validates Payload & GeoCoordinates                │
- │   - Idempotency Deduplication Cache                    │
- │   - Dispatches Background ML Inference Worker          │
+ │               EXPRESS.JS & NODE.JS BACKEND             │
+ │  - RESTful API Ingestion with Multer File Streaming    │
+ │  - Strict Idempotency Deduplication Cache              │
+ │  - Asynchronous ML Spectral & Pathology Classifier    │
+ │  - Real-Time SSE Event Broker & Keepalive Heartbeat    │
  └────────────────────────────┬───────────────────────────┘
-                              │ Non-blocking Background Task
+                              │ Mongoose ODM & 2dsphere Spatial Indexing
                               ▼
  ┌────────────────────────────────────────────────────────┐
- │           ASYNC ML & LOCALIZATION PIPELINE             │
- │   - Edge Image Inspection (Pillow / ONNX Runtime)      │
- │   - Multi-Lingual Engine (EN, HI, TA, TE, ES, BN)      │
- │   - Generates RFC 7946 Compliant GeoJSON Feature       │
- └────────────────────────────┬───────────────────────────┘
-                              │ Server-Sent Events (SSE) Broadcast
-                              ▼
- ┌────────────────────────────────────────────────────────┐
- │            GOVERNMENT COMMAND DASHBOARD                │
- │   - Leaflet.js + MarkerCluster Interactive GIS         │
- │   - Real-Time Outbreak Clustering & Heatmap            │
- │   - Live Activity Feed & KPI Counters                  │
+ │            MONGODB ATLAS (Cloud Database)              │
+ │  - GeoJSON RFC 7946 Features & 2dsphere Geometry Index │
+ │  - Cloud Cluster with Connection Pooling & Auto-Retry  │
+ │  - Resilient In-Memory Buffer Fallback Mechanism       │
  └────────────────────────────────────────────────────────┘
 ```
 
@@ -46,96 +43,162 @@ A production-grade, highly accessible, multi-lingual Progressive Web App (PWA) w
 
 ```
 d:/FSD/
-├── backend/
-│   ├── app.py                 # FastAPI application, CORS, static mounts, API routing, SSE streaming
-│   ├── config.py              # Port, host, max upload size, geobound parameters
-│   ├── models.py              # Pydantic schemas (RFC 7946 GeoJSON, Ingestion, Simulation)
-│   ├── localization.py        # Multi-lingual treatment plans (EN, HI, TA, TE, ES, BN)
-│   ├── ml_pipeline.py         # Async ML model runner, feature extraction, and confidence scoring
-│   ├── geo_store.py           # In-memory spatial repository & deduplication cache (pre-seeded)
-│   └── requirements.txt       # Dependencies list
-├── frontend/                  # Accessible, multi-lingual PWA with edge camera & IndexedDB
-│   ├── index.html             # High-accessibility UI, WCAG AA compliant, language toggle, camera trigger
-│   ├── manifest.json          # PWA Web App Manifest (standalone, theme colors, icons)
-│   ├── sw.js                  # Service Worker with Cache-First strategy & Background Sync
-│   ├── js/
-│   │   ├── app.js             # Main frontend logic, reactive state, online/offline status bar
-│   │   ├── idb-store.js       # IndexedDB storage wrapper for offline blobs and metadata
-│   │   ├── sync-engine.js     # Hybrid sync engine (Background Sync API + online event fallback)
-│   │   └── i18n.js            # Client-side multi-lingual localization dictionary
-│   └── css/
-│       └── app.css            # Modern glassmorphism, responsive, high-contrast dark theme
-├── dashboard/                 # Real-time government analytical command dashboard
-│   ├── index.html             # Command dashboard with Leaflet map, KPI cards, outbreak triage feed
-│   ├── dashboard.js           # Leaflet map, MarkerCluster, SSE subscriber, filter state, real-time counters
-│   └── dashboard.css          # Dark-mode GIS dashboard layout, metric badges, radar ping animation
-├── run.py                     # Convenience launcher script
-└── README.md                  # This file
+├── server/                    # Node.js + Express + Mongoose Backend
+│   ├── package.json           # Express, Mongoose, Multer, Morgan, UUID, Dotenv
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── db.js          # MongoDB Mongoose connection manager (Atlas support)
+│   │   ├── models/
+│   │   │   └── Incident.js    # RFC 7946 GeoJSON Mongoose model with 2dsphere index
+│   │   ├── services/
+│   │   │   ├── mlPipeline.js  # Neural pathology inspection & confidence scoring
+│   │   │   ├── localization.js# Multi-lingual clinical triage (EN, HI, TA, TE, ES, BN)
+│   │   │   ├── sseManager.js  # Server-Sent Events real-time broadcast engine
+│   │   │   ├── store.js       # Resilient storage repository (Mongo + Memory buffer)
+│   │   │   └── seedData.js    # Historical agricultural telemetry seeder
+│   │   ├── routes/
+│   │   │   ├── health.js      # Health status and database monitoring
+│   │   │   └── incidents.js   # Ingestion, GeoJSON, simulation & SSE endpoints
+│   │   └── server.js          # Express app entrypoint & React static file server
+│   └── test/
+│       └── api.test.js        # Automated unit and integration test suite
+├── client/                    # React 18 + Vite Frontend Application
+│   ├── package.json           # React 18, Leaflet, Vite
+│   ├── vite.config.js         # Vite configuration with Express API proxy
+│   ├── index.html             # HTML template with Leaflet & Google Fonts Inter
+│   ├── public/
+│   │   ├── manifest.json      # Progressive Web App manifest
+│   │   └── favicon.svg        # AgroEdge SVG emblem
+│   └── src/
+│       ├── main.jsx           # React DOM root entrypoint
+│       ├── App.jsx            # State coordinator, SSE listener & tab routing
+│       ├── App.css            # Dark glassmorphic design system & WCAG AA contrast
+│       ├── i18n/
+│       │   └── translations.js# Client translations (EN, HI, TA, TE, ES, BN)
+│       ├── services/
+│       │   ├── api.js         # Express REST & SSE stream subscriber
+│       │   ├── idb.js         # Offline IndexedDB storage wrapper
+│       │   └── audio.js       # Web Audio API radar ping synthesizer
+│       └── components/
+│           ├── Navbar.jsx               # MERN badges, live indicators & language switch
+│           ├── FieldWorkerPWA.jsx       # Camera capture, GPS, offline queue & diagnosis
+│           ├── CommandDashboard.jsx     # Leaflet GIS map, KPIs, SSE feed & simulator
+│           └── IncidentDetailModal.jsx  # Detailed clinical triage & voice readout
+├── .env                       # Root environment configuration (MongoDB Atlas URI)
+├── .env.example               # Reference environment template
+├── package.json               # Root scripts to run full MERN dev / build / start
+├── Dockerfile                 # Multi-stage container: React Vite builder + Node runtime
+├── docker-compose.yml         # Container orchestration for MongoDB & MERN App
+└── README.md                  # System documentation
 ```
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Install Dependencies
-```bash
-python -m pip install -r backend/requirements.txt
+### 1. Configure MongoDB Atlas
+
+Open `.env` in the project root and configure your **MongoDB Atlas** connection string:
+
+```env
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-name>.mongodb.net/agroedge_db?retryWrites=true&w=majority
 ```
 
-### 2. Start the Server
-```bash
-python run.py
-```
-
-### 3. Open in Browser
-- **Field Worker PWA:** [http://localhost:8000/](http://localhost:8000/)
-- **Government Command Center:** [http://localhost:8000/dashboard](http://localhost:8000/dashboard)
-- **Interactive Swagger API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+> **Tip:** You can also use a local MongoDB instance: `mongodb://127.0.0.1:27017/agroedge_db`. AgroEdge includes an automated in-memory buffer fallback to keep the service operational even during cloud network transitions.
 
 ---
 
-## 📱 Offline-First PWA Workflow
-1. **Open the PWA** at `http://localhost:8000/`.
-2. Open DevTools (`F12`), navigate to **Network**, and switch throttling to **Offline**.
-3. Click **Capture / Select Leaf Image** and select any photo.
-4. The image will be:
-   - Compressed at the edge to prevent storage blowout.
-   - Tagged with GPS coordinates and selected language.
-   - Stored in local **IndexedDB** with status `Queued for Sync`.
-5. Switch DevTools back to **Online**.
-6. The **Hybrid Sync Engine** automatically detects network recovery, drains the offline queue, transmits the payload with its idempotency UUID, and marks it `Synced to Command`.
+### 2. Install Dependencies
 
----
+Install both server and client packages with one command from the project root:
 
-## 🛰️ Real-Time Government Dashboard
-1. Open the dashboard at `http://localhost:8000/dashboard`.
-2. Observe pre-seeded historical outbreak clusters across regions (Punjab, Maharashtra, Tamil Nadu, etc.).
-3. Click **Trigger Simulated Edge Ping** or submit an incident from the PWA.
-4. Watch the dashboard update in real-time over the **Server-Sent Events (`/api/v1/dashboard/stream`)** connection:
-   - Map smoothly flies to the new outbreak point.
-   - Pulsating pin renders with severity color coding.
-   - KPI counters update automatically.
-   - Localized treatment plan appears in the triage feed.
-
----
-
-## 🚀 Production Deployment (Docker & Nginx)
-
-For full production rollout instructions, refer to the [Deployment Guide](DEPLOYMENT.md).
-
-### Quick Launch with Docker Compose
 ```bash
-# 1. Prepare environment variables
-cp .env.example .env
-
-# 2. Build and launch containers in background
-docker compose up -d --build
-
-# 3. Check container health status
-docker compose ps
+npm run install:all
 ```
 
-The stack launches:
-* **`agroedge-app`**: Security-hardened non-root Python 3.11 container running multi-worker Uvicorn.
-* **`agroedge-proxy`**: Optimized Nginx alpine reverse proxy configured for unbuffered Server-Sent Events (SSE), PWA Service Worker cache-invalidation headers, and static asset caching.
+Or individually:
+```bash
+npm install --prefix server
+npm install --prefix client
+```
 
+---
+
+### 3. Start Development Servers
+
+Run both the **Express Backend** (port 8000) and **React Vite Client** (port 5173) concurrently:
+
+```bash
+npm run dev
+```
+
+- **React Development UI:** [http://localhost:5173/](http://localhost:5173/)
+- **Express API Gateway:** [http://localhost:8000/api](http://localhost:8000/api)
+- **Health Check:** [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
+
+---
+
+### 4. Build & Production Deployment
+
+To compile the React client and serve it directly from the Node.js Express server:
+
+```bash
+# Build the React production bundle
+npm run build
+
+# Start the unified production server
+npm start
+```
+
+Access the unified production app at: [http://localhost:8000/](http://localhost:8000/)
+
+---
+
+### 5. Run Automated Test Suite
+
+Execute the comprehensive automated test suite validating ML inference, localization, GeoJSON RFC 7946 compliance, Express endpoints, and React static delivery:
+
+```bash
+npm test --prefix server
+```
+
+---
+
+## 🛰️ REST API & SSE Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/health` | System health, MongoDB Atlas connection status, incident count |
+| `POST` | `/api/v1/diagnose-and-report` | Primary edge ingestion (Multipart form with photo + GPS coords) |
+| `GET` | `/api/v1/incidents/geojson` | Returns RFC 7946 GeoJSON FeatureCollection for Leaflet GIS |
+| `GET` | `/api/v1/incidents/:id` | Detailed diagnostic record and localized treatment plan by ID |
+| `POST` | `/api/v1/simulate-incident` | Tactical simulation: injects synthetic telemetry into MongoDB & SSE |
+| `GET` | `/api/v1/dashboard/stream` | Server-Sent Events (SSE) live telemetry stream with keepalive pings |
+| `DELETE` | `/api/v1/incidents` | Purges all telemetry incident records from MongoDB |
+
+---
+
+## 🌾 Key Features
+
+1. **Edge PWA (Field Worker App):**
+   - Instant edge leaf capture with auto GPS positioning.
+   - Offline-First: captures are safely stored in IndexedDB when disconnected and synced automatically upon reconnection.
+   - Multi-lingual clinical diagnosis in 6 languages with Text-to-Speech audio readout for farmers.
+
+2. **Tactical GIS Command Center:**
+   - Leaflet interactive map with CartoDB Dark Matter tiles.
+   - Dynamic outbreak markers colored by severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) with radar pulsing animation.
+   - Live SSE Telemetry Activity Feed updating in real-time without polling.
+   - KPI counters: Total Incidents, Critical Outbreaks, Average Neural Confidence, Threat Level.
+   - Data Export tools: One-click export to GeoJSON and CSV.
+   - Tactical field outbreak simulation button for demonstrations.
+
+---
+
+## 🐳 Docker Deployment
+
+To launch the complete environment using Docker Compose:
+
+```bash
+docker compose up --build
+```

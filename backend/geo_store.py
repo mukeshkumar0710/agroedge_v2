@@ -1,30 +1,55 @@
 """
-Spatial Repository & Real-Time Dispatcher.
-Maintains GeoJSON incident features, idempotency cache, and pub-sub queues.
+Spatial Repository & Real-Time Dispatcher with MongoDB Persistence.
+Maintains GeoJSON incident features in MongoDB with 2dsphere indexing,
+supports automatic in-memory fallback, guarantees idempotency deduplication,
+and streams updates via SSE pub-sub queues.
 """
 import asyncio
 import datetime
-from typing import List, Set, Dict, Any
+import logging
+from typing import List, Set, Dict, Any, Optional
 from .models import GeoJSONFeature, GeoJSONGeometry, IncidentProperties, GeoJSONFeatureCollection
 from .config import SEED_SAMPLE_DATA
 from .localization import get_localized_treatment
+from .database import mongo_manager
+
+logger = logging.getLogger("agroedge.geo_store")
 
 class SpatialIncidentStore:
     def __init__(self):
-        self.processed_ids: Set[str] = set()
-        self.features: List[GeoJSONFeature] = []
+        self.in_flight_ids: Set[str] = set()
         self.subscribers: List[asyncio.Queue] = []
-        if SEED_SAMPLE_DATA:
-            self._seed_sample_incidents()
+        # In-memory buffer for zero-downtime fallback
+        self.features: List[GeoJSONFeature] = []
+        self.processed_ids: Set[str] = set()
 
+    async def init_db(self):
+        """
+        Initializes MongoDB connection and seeds initial sample incidents.
+        If MongoDB is connected and collection is empty, seeds into MongoDB.
+        If MongoDB is unreachable, seeds into in-memory buffer.
+        """
+        connected = await mongo_manager.connect()
+        if connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    doc_count = await collection.count_documents({})
+                    if doc_count == 0 and SEED_SAMPLE_DATA:
+                        await self._seed_sample_incidents(to_mongo=True)
+                except Exception as exc:
+                    logger.warning(f"Error querying MongoDB on init: {exc}")
+                    if SEED_SAMPLE_DATA and not self.features:
+                        await self._seed_sample_incidents(to_mongo=False)
+        else:
+            if SEED_SAMPLE_DATA and not self.features:
+                await self._seed_sample_incidents(to_mongo=False)
 
-    def clear_all(self):
-        """Purges all incidents and deduplication IDs."""
-        self.features.clear()
-        self.processed_ids.clear()
+    async def close_db(self):
+        """Closes the database client."""
+        await mongo_manager.close()
 
-    def _seed_sample_incidents(self):
-
+    async def _seed_sample_incidents(self, to_mongo: bool = True):
         """
         Seeds initial realistic geographical incidents across agricultural zones.
         Ensures command dashboard is immediately populated with interactive clusters.
@@ -113,14 +138,13 @@ class SpatialIncidentStore:
         ]
 
         now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        docs = []
         for item in sample_data:
-            self.processed_ids.add(item["id"])
             loc = get_localized_treatment(item["condition"], item["lang"])
             feat = GeoJSONFeature(
                 id=item["id"],
                 geometry=GeoJSONGeometry(
                     type="Point",
-                    # RFC 7946: [lng, lat]
                     coordinates=[item["lng"], item["lat"]]
                 ),
                 properties=IncidentProperties(
@@ -137,26 +161,72 @@ class SpatialIncidentStore:
                     agent_id="seed-historical"
                 )
             )
+            docs.append(feat.model_dump())
             self.features.append(feat)
+            self.processed_ids.add(feat.id)
 
+        if to_mongo and mongo_manager.is_connected:
+            try:
+                collection = mongo_manager.get_collection()
+                if collection is not None and docs:
+                    await collection.insert_many(docs)
+                    logger.info(f"Pre-seeded {len(docs)} historical incidents into MongoDB.")
+            except Exception as exc:
+                logger.warning(f"Could not seed incidents into MongoDB: {exc}")
 
-    def is_duplicate(self, incident_id: str) -> bool:
-        return incident_id in self.processed_ids
+    async def is_duplicate(self, incident_id: str) -> bool:
+        """Checks if an incident ID is currently in-flight or already stored."""
+        if incident_id in self.in_flight_ids or incident_id in self.processed_ids:
+            return True
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    doc = await collection.find_one({"id": incident_id}, {"_id": 1})
+                    return doc is not None
+                except Exception:
+                    pass
+        return False
 
     def register_id(self, incident_id: str):
-        self.processed_ids.add(incident_id)
+        """Registers an in-flight incident ID during initial payload validation."""
+        self.in_flight_ids.add(incident_id)
 
     def remove_id(self, incident_id: str):
-        self.processed_ids.discard(incident_id)
+        """Discards an in-flight reservation upon error."""
+        self.in_flight_ids.discard(incident_id)
 
     async def add_and_broadcast(self, feature: GeoJSONFeature):
-        self.features.insert(0, feature)
+        """
+        Persists GeoJSON Feature to MongoDB (with upsert) and in-memory buffer,
+        then broadcasts to all connected SSE clients.
+        """
+        feature_dict = feature.model_dump()
+        self.in_flight_ids.discard(feature.id)
         self.processed_ids.add(feature.id)
 
-        # Broadcast to all connected command dashboard SSE subscribers
-        feature_dict = feature.model_dump()
-        stale_queues = []
+        # Update in-memory buffer (newest first)
+        existing_idx = next((i for i, f in enumerate(self.features) if f.id == feature.id), None)
+        if existing_idx is not None:
+            self.features[existing_idx] = feature
+        else:
+            self.features.insert(0, feature)
 
+        # Persist to MongoDB if connected
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    await collection.update_one(
+                        {"id": feature.id},
+                        {"$set": feature_dict},
+                        upsert=True
+                    )
+                except Exception as exc:
+                    logger.warning(f"MongoDB write failed for {feature.id}, held in memory: {exc}")
+
+        # Broadcast to all connected command dashboard SSE subscribers
+        stale_queues = []
         for q in list(self.subscribers):
             try:
                 q.put_nowait(feature_dict)
@@ -169,15 +239,62 @@ class SpatialIncidentStore:
             if stale in self.subscribers:
                 self.subscribers.remove(stale)
 
-    def get_feature_collection(self) -> GeoJSONFeatureCollection:
+    async def get_feature_collection(self) -> GeoJSONFeatureCollection:
+        """
+        Retrieves all incidents from MongoDB or falls back to in-memory buffer.
+        """
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    cursor = collection.find({}, {"_id": 0}).sort("properties.timestamp", -1)
+                    docs = await cursor.to_list(length=5000)
+                    if docs:
+                        features = [GeoJSONFeature(**d) for d in docs]
+                        return GeoJSONFeatureCollection(features=features)
+                except Exception as exc:
+                    logger.warning(f"MongoDB read error: {exc}. Using in-memory store.")
         return GeoJSONFeatureCollection(features=self.features)
 
-    def get_incident_by_id(self, incident_id: str):
+    async def get_incident_by_id(self, incident_id: str) -> Optional[GeoJSONFeature]:
+        """Retrieves a single incident by ID from MongoDB or in-memory store."""
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    doc = await collection.find_one({"id": incident_id}, {"_id": 0})
+                    if doc:
+                        return GeoJSONFeature(**doc)
+                except Exception:
+                    pass
         for feat in self.features:
             if feat.id == incident_id:
                 return feat
         return None
 
+    async def clear_all(self):
+        """Purges all incidents from MongoDB and in-memory buffer."""
+        self.features.clear()
+        self.processed_ids.clear()
+        self.in_flight_ids.clear()
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    await collection.delete_many({})
+                except Exception as exc:
+                    logger.warning(f"Failed to clear MongoDB: {exc}")
+
+    async def count_incidents(self) -> int:
+        """Returns total count of incidents."""
+        if mongo_manager.is_connected:
+            collection = mongo_manager.get_collection()
+            if collection is not None:
+                try:
+                    return await collection.count_documents({})
+                except Exception:
+                    pass
+        return len(self.features)
 
     def subscribe(self) -> asyncio.Queue:
         q = asyncio.Queue(maxsize=100)

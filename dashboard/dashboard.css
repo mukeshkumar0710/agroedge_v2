@@ -166,15 +166,37 @@ body {
 }
 
 @keyframes pulse-green {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
 }
 
 @keyframes pulse-red {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
 }
 
 .hud-clock {
@@ -346,13 +368,16 @@ body {
 .sidebar-scrollable::-webkit-scrollbar {
   width: 6px;
 }
+
 .sidebar-scrollable::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .sidebar-scrollable::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
+
 .sidebar-scrollable::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
@@ -406,10 +431,22 @@ body {
   height: 100%;
   transition: width 0.4s ease;
 }
-.bar-seg.crit { background-color: var(--color-critical); }
-.bar-seg.high { background-color: var(--color-high); }
-.bar-seg.med  { background-color: var(--color-medium); }
-.bar-seg.low  { background-color: var(--color-low); }
+
+.bar-seg.crit {
+  background-color: var(--color-critical);
+}
+
+.bar-seg.high {
+  background-color: var(--color-high);
+}
+
+.bar-seg.med {
+  background-color: var(--color-medium);
+}
+
+.bar-seg.low {
+  background-color: var(--color-low);
+}
 
 .distribution-legend {
   display: flex;
@@ -429,10 +466,22 @@ body {
   height: 6px;
   border-radius: 50%;
 }
-.dot.crit { background-color: var(--color-critical); }
-.dot.high { background-color: var(--color-high); }
-.dot.med  { background-color: var(--color-medium); }
-.dot.low  { background-color: var(--color-low); }
+
+.dot.crit {
+  background-color: var(--color-critical);
+}
+
+.dot.high {
+  background-color: var(--color-high);
+}
+
+.dot.med {
+  background-color: var(--color-medium);
+}
+
+.dot.low {
+  background-color: var(--color-low);
+}
 
 /* KPI Grid */
 .kpi-grid {
@@ -477,10 +526,21 @@ body {
   margin-top: 4px;
 }
 
-.kpi-val.accent { color: var(--color-accent); }
-.kpi-val.critical { color: var(--color-critical); }
-.kpi-val.success { color: var(--color-low); }
-.kpi-val.highlight { color: var(--color-indigo); }
+.kpi-val.accent {
+  color: var(--color-accent);
+}
+
+.kpi-val.critical {
+  color: var(--color-critical);
+}
+
+.kpi-val.success {
+  color: var(--color-low);
+}
+
+.kpi-val.highlight {
+  color: var(--color-indigo);
+}
 
 /* Filter Console */
 .filter-console {
@@ -690,10 +750,21 @@ body {
   background-color: var(--color-accent);
 }
 
-.feed-item.crit::before { background-color: var(--color-critical); }
-.feed-item.high::before { background-color: var(--color-high); }
-.feed-item.med::before  { background-color: var(--color-medium); }
-.feed-item.low::before  { background-color: var(--color-low); }
+.feed-item.crit::before {
+  background-color: var(--color-critical);
+}
+
+.feed-item.high::before {
+  background-color: var(--color-high);
+}
+
+.feed-item.med::before {
+  background-color: var(--color-medium);
+}
+
+.feed-item.low::before {
+  background-color: var(--color-low);
+}
 
 .feed-item-top {
   display: flex;
@@ -758,10 +829,29 @@ body {
   font-family: var(--font-mono);
 }
 
-.badge-critical { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-.badge-high     { background: rgba(249, 115, 22, 0.25); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
-.badge-medium   { background: rgba(234, 179, 8, 0.25);  color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); }
-.badge-low      { background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+.badge-critical {
+  background: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-high {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.badge-medium {
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.badge-low {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
 
 .tag-category {
   font-size: 0.65rem;
@@ -891,7 +981,7 @@ body {
   color: #f9fafb;
   border: 1px solid var(--dash-border);
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   padding: 2px;
 }
 
@@ -938,8 +1028,15 @@ body {
 }
 
 @keyframes modal-enter {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
@@ -1070,7 +1167,8 @@ body {
   color: var(--text-sub);
 }
 
-.geo-row strong, .geo-row code {
+.geo-row strong,
+.geo-row code {
   color: #e2e8f0;
 }
 
@@ -1157,14 +1255,35 @@ body {
   transition: opacity 0.3s, transform 0.3s;
 }
 
-.toast.crit, .toast.critical { border-left-color: var(--color-critical); }
-.toast.high { border-left-color: var(--color-high); }
-.toast.med, .toast.medium { border-left-color: var(--color-medium); }
-.toast.low, .toast.success { border-left-color: var(--color-low); }
+.toast.crit,
+.toast.critical {
+  border-left-color: var(--color-critical);
+}
+
+.toast.high {
+  border-left-color: var(--color-high);
+}
+
+.toast.med,
+.toast.medium {
+  border-left-color: var(--color-medium);
+}
+
+.toast.low,
+.toast.success {
+  border-left-color: var(--color-low);
+}
 
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .toast-content {

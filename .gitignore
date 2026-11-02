@@ -22,3 +22,9 @@ scratch/
 Thumbs.db
 .vscode/
 .idea/
+
+# Node.js Dependencies & Builds
+node_modules/
+dist/
+build/
+.npm

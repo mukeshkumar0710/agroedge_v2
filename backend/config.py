@@ -42,5 +42,11 @@ MAX_IMAGE_SIZE_BYTES = int(os.getenv("MAX_IMAGE_SIZE_BYTES", str(15 * 1024 * 102
 # Pre-seeded Historical Sample Telemetry (Set to "false" in production for clean database)
 SEED_SAMPLE_DATA = os.getenv("SEED_SAMPLE_DATA", "true").lower() in ("true", "1", "yes")
 
+# MongoDB Settings (Persistence layer with in-memory fallback)
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "agroedge_db")
+MONGODB_COLLECTION_NAME = os.getenv("MONGODB_COLLECTION_NAME", "incidents")
+MONGODB_CONNECT_TIMEOUT_MS = int(os.getenv("MONGODB_CONNECT_TIMEOUT_MS", "8000"))
+
 
 

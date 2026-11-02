@@ -1,68 +1,55 @@
 # ==============================================================================
-# AgroEdge: Edge PWA & Geospatial Command Hub - Production Dockerfile
-# Multi-stage optimized, non-root security hardened container
+# AgroEdge MERN Stack Production Dockerfile
+# Multi-stage optimized: React Vite frontend builder + Node.js Express runtime
 # ==============================================================================
 
-# Stage 1: Build & wheels generation
-FROM python:3.11-slim AS builder
+# Stage 1: Build React Vite Client
+FROM node:20-alpine AS client-builder
 
-WORKDIR /build
+WORKDIR /build/client
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+COPY client/package*.json ./
+RUN npm ci
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip wheel --no-cache-dir --no-deps --wheel-dir /build/wheels -r requirements.txt
+COPY client/ ./
+RUN npm run build
 
-# Stage 2: Final runtime container
-FROM python:3.11-slim AS runtime
+# Stage 2: Production Node.js Express Runtime
+FROM node:20-alpine AS runtime
 
 LABEL maintainer="AgroEdge Team"
-LABEL description="Production container for AgroEdge PWA, ML Pipeline, and Geospatial Hub"
+LABEL description="AgroEdge MERN Stack Container: Node.js Express + React + MongoDB"
 
-# Set runtime environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    HOST=0.0.0.0 \
+ENV NODE_ENV=production \
     PORT=8000 \
-    WORKERS=2 \
-    APP_ENV=production \
-    LOG_LEVEL=info
-
-# Create non-root system user and group
-RUN groupadd -g 10001 agroedge && \
-    useradd -u 10001 -g agroedge -s /bin/bash -m agroedge
+    HOST=0.0.0.0
 
 WORKDIR /app
 
-# Install pre-built wheels from builder stage
-COPY --from=builder /build/wheels /wheels
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir /wheels/* && \
-    rm -rf /wheels
+# Install server production dependencies
+COPY server/package*.json ./server/
+RUN cd server && npm ci --only=production
 
-# Copy application modules
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
-COPY dashboard/ ./dashboard/
-COPY run.py .
+# Copy server application source
+COPY server/ ./server/
 
-# Assign file ownership to non-root user
-RUN chown -R agroedge:agroedge /app
+# Copy compiled React static assets from Stage 1 into client/dist for Express static serving
+COPY --from=client-builder /build/client/dist ./client/dist
 
-# Switch to non-root security context
+# Copy root environment and package definitions
+COPY package*.json ./
+
+# Create non-root user and assign permissions
+RUN addgroup -g 10001 agroedge && \
+    adduser -u 10001 -G agroedge -s /bin/sh -D agroedge && \
+    chown -R agroedge:agroedge /app
+
 USER agroedge
 
-# Expose internal listening port
 EXPOSE 8000
 
-# Docker healthcheck querying the internal health API
-HEALTHCHECK --interval=30s --timeout=5s --start-period=8s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
+# Health check against Node.js health endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/v1/health || exit 1
 
-# Launch production ASGI server with proxy header forwarding enabled
-CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-2} --proxy-headers --forwarded-allow-ips '*'"]
-
+CMD ["node", "server/src/server.js"]

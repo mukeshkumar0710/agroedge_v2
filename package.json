@@ -1,0 +1,28 @@
+{
+  "name": "agroedge-mern",
+  "version": "2.0.0",
+  "description": "AgroEdge MERN Stack: MongoDB Atlas, Express.js, React 18 (Vite), Node.js with 2dsphere Geospatial AI & Outbreak Command Center",
+  "private": true,
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:client",
+    "start": "node server/src/server.js",
+    "dev": "node -e \"const { spawn } = require('child_process'); const isWin = process.platform === 'win32'; const n = isWin ? 'npm.cmd' : 'npm'; spawn(n, ['run', 'dev', '--prefix', 'server'], { stdio: 'inherit' }); spawn(n, ['run', 'dev', '--prefix', 'client'], { stdio: 'inherit' });\"",
+    "install:all": "npm install --prefix server && npm install --prefix client"
+  },
+  "keywords": [
+    "mern",
+    "mongodb",
+    "express",
+    "react",
+    "node",
+    "geospatial",
+    "pwa",
+    "leaflet",
+    "ai"
+  ],
+  "author": "AgroEdge Engineering",
+  "license": "MIT"
+}
